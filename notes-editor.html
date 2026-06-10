@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>محرر الملاحظات</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Cairo', sans-serif;
+      background: #f1f5f9;
+      color: #1e293b;
+      padding: 24px;
+      min-height: 100vh;
+    }
+    .container { max-width: 860px; margin: 0 auto; }
+    h1 { text-align: center; font-size: 28px; font-weight: 900; color: #0f172a; margin-bottom: 24px; }
+    .card {
+      background: #fff;
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 1px 3px rgba(0,0,0,.1);
+      margin-bottom: 20px;
+    }
+    .card-title { font-size: 16px; font-weight: 700; color: #334155; margin-bottom: 16px; }
+    .form-row { display: flex; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+    .form-row > * { flex: 1; min-width: 140px; }
+    label { display: block; font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 4px; }
+    select, input, textarea {
+      font-family: 'Cairo', sans-serif;
+      width: 100%;
+      padding: 10px 14px;
+      border: 1.5px solid #cbd5e1;
+      border-radius: 10px;
+      font-size: 14px;
+      background: #fff;
+      transition: border-color .2s;
+    }
+    select:focus, input:focus, textarea:focus { outline: none; border-color: #2563eb; }
+    textarea { resize: vertical; min-height: 60px; }
+    .btn {
+      font-family: 'Cairo', sans-serif;
+      padding: 10px 24px;
+      border: none;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .btn-primary { background: #2563eb; color: #fff; }
+    .btn-primary:hover { background: #1d4ed8; }
+    .btn-danger { background: #ef4444; color: #fff; }
+    .btn-danger:hover { background: #dc2626; }
+    .btn-success { background: #16a34a; color: #fff; }
+    .btn-success:hover { background: #15803d; }
+    .btn-warning { background: #f59e0b; color: #fff; }
+    .btn-warning:hover { background: #d97706; }
+    .btn-outline { background: transparent; border: 1.5px solid #cbd5e1; color: #475569; }
+    .btn-outline:hover { border-color: #94a3b8; }
+    .btn-sm { padding: 6px 14px; font-size: 12px; }
+    .entry {
+      background: #f8fafc;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 12px;
+    }
+    .entry-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .entry-full { grid-column: 1 / -1; }
+    .entry-actions { display: flex; gap: 8px; margin-top: 10px; justify-content: flex-end; }
+    .entry .field-label { font-size: 12px; font-weight: 600; color: #64748b; margin-bottom: 2px; }
+    .entry .field-value { font-size: 14px; color: #0f172a; }
+    .time-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #dbeafe;
+      color: #1d4ed8;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 4px 12px;
+      border-radius: 20px;
+      margin: 2px 4px 2px 0;
+    }
+    .time-tag .remove {
+      cursor: pointer;
+      font-size: 16px;
+      line-height: 1;
+      color: #ef4444;
+    }
+    .time-tag .remove:hover { color: #dc2626; }
+    .empty-state { text-align: center; padding: 32px; color: #94a3b8; font-size: 15px; }
+    .actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 20px; }
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #0f172a;
+      color: #fff;
+      padding: 12px 24px;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 600;
+      opacity: 0;
+      transition: opacity .3s;
+      pointer-events: none;
+    }
+    .toast.show { opacity: 1; }
+    .times-container { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 6px; }
+    .add-time-row { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
+    .add-time-row input { flex: 1; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📝 محرر الملاحظات</h1>
+    <div id="toast" class="toast"></div>
+
+    <div class="card">
+      <div class="card-title">عنوان الصفحة</div>
+      <select id="titleSelect">
+        <option value="ملاحظات">ملاحظات</option>
+        <option value="ملاحظة">ملاحظة</option>
+        <option value="تنبيه">تنبيه</option>
+        <option value="تنويه">تنويه</option>
+        <option value="وصل حديثاً">وصل حديثاً</option>
+      </select>
+    </div>
+
+    <div class="card">
+      <div class="card-title">ملاحظات الحجز (اختياري)</div>
+      <input id="bookingNotesInput" placeholder="مثال: الحجز قبلها بيوم">
+    </div>
+
+    <div class="card">
+      <div class="card-title">إضافة مدخل جديد</div>
+      <div class="form-row">
+        <div>
+          <label>اسم الدكتور</label>
+          <input id="inputDoctor" placeholder="د/ مثال">
+        </div>
+        <div>
+          <label>التخصص</label>
+          <input id="inputSpecialty" placeholder="مثال: الباطنة">
+        </div>
+      </div>
+      <div>
+        <label>المواعيد</label>
+        <div class="times-container" id="newEntryTimes"></div>
+        <div class="add-time-row">
+          <input id="inputTime" placeholder="مثال: السبت 12:00 ظ" onkeydown="if(event.key==='Enter')addTimeToNew()">
+          <button class="btn btn-primary btn-sm" onclick="addTimeToNew()">➕</button>
+        </div>
+      </div>
+      <div style="margin-top:12px">
+        <label>نص الملاحظة</label>
+        <input id="inputNote" placeholder="مثال: استشاري في جامعة عين شمس">
+      </div>
+      <div style="text-align: left; margin-top: 12px;">
+        <button class="btn btn-primary" onclick="addEntry()">➕ إضافة مدخل</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">المدخلات (<span id="entryCount">0</span>)</div>
+      <div id="entriesList"></div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-success" onclick="saveToAPI()">💾 تحديث الملف</button>
+      <button class="btn btn-outline" onclick="exportJSON()">📥 تصدير JSON</button>
+      <label class="btn btn-outline" style="cursor:pointer;">
+        📂 استيراد JSON
+        <input type="file" accept=".json" style="display:none" onchange="importJSON(event)">
+      </label>
+      <button class="btn btn-outline" onclick="clearAll()">🗑️ تفريغ الكل</button>
+    </div>
+  </div>
+
+  <script>
+    let entries = [];
+    let newEntryTimeList = [];
+
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 2500);
+    }
+
+    function renderNewEntryTimes() {
+      const container = document.getElementById('newEntryTimes');
+      if (newEntryTimeList.length === 0) {
+        container.innerHTML = '<span style="color:#94a3b8;font-size:13px;">لا توجد مواعيد مضافة</span>';
+        return;
+      }
+      container.innerHTML = newEntryTimeList.map((t, i) =>
+        `<span class="time-tag">${t} <span class="remove" onclick="removeNewEntryTime(${i})">×</span></span>`
+      ).join('');
+    }
+
+    function addTimeToNew() {
+      const input = document.getElementById('inputTime');
+      const val = input.value.trim();
+      if (!val) return;
+      newEntryTimeList.push(val);
+      input.value = '';
+      renderNewEntryTimes();
+    }
+
+    function removeNewEntryTime(index) {
+      newEntryTimeList.splice(index, 1);
+      renderNewEntryTimes();
+    }
+
+    function render() {
+      const list = document.getElementById('entriesList');
+      const count = document.getElementById('entryCount');
+      count.textContent = entries.length;
+
+      if (entries.length === 0) {
+        list.innerHTML = '<div class="empty-state">لا توجد مدخلات. أضف مدخلاً جديداً من الأعلى.</div>';
+        return;
+      }
+
+      list.innerHTML = entries.map((e, i) => `
+        <div class="entry">
+          <div class="entry-grid">
+            <div><div class="field-label">اسم الدكتور</div><div class="field-value">${e.doctor || '—'}</div></div>
+            <div><div class="field-label">التخصص</div><div class="field-value">${e.specialty || '—'}</div></div>
+            <div class="entry-full"><div class="field-label">المواعيد</div>
+              <div>${(e.times||[]).map(t => `<span class="time-tag">${t}</span>`).join('') || '<span style="color:#94a3b8;">—</span>'}</div>
+            </div>
+            <div class="entry-full"><div class="field-label">ملاحظة</div><div class="field-value">${e.note || '—'}</div></div>
+          </div>
+          <div class="entry-actions">
+            <button class="btn btn-danger btn-sm" onclick="removeEntry(${i})">🗑️ حذف</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function addEntry() {
+      const doctor = document.getElementById('inputDoctor').value.trim();
+      const specialty = document.getElementById('inputSpecialty').value.trim();
+      const note = document.getElementById('inputNote').value.trim();
+      const times = [...newEntryTimeList];
+
+      if (!doctor && !specialty && times.length === 0 && !note) return;
+
+      entries.push({ doctor, specialty, times, note });
+      document.getElementById('inputDoctor').value = '';
+      document.getElementById('inputSpecialty').value = '';
+      document.getElementById('inputNote').value = '';
+      newEntryTimeList = [];
+      renderNewEntryTimes();
+      saveToLocal();
+      render();
+    }
+
+    function removeEntry(index) {
+      entries.splice(index, 1);
+      saveToLocal();
+      render();
+    }
+
+    function clearAll() {
+      if (entries.length === 0) return;
+      if (!confirm('تفريغ كل المدخلات؟')) return;
+      entries = [];
+      saveToLocal();
+      render();
+    }
+
+    function saveToLocal() {
+      const data = {
+        title: document.getElementById('titleSelect').value,
+        bookingNotes: document.getElementById('bookingNotesInput').value,
+        entries,
+      };
+      localStorage.setItem('hospital-notes', JSON.stringify(data));
+    }
+
+    function loadFromLocal() {
+      const saved = localStorage.getItem('hospital-notes');
+      if (saved) {
+        try {
+          const data = JSON.parse(saved);
+          document.getElementById('titleSelect').value = data.title || 'تنبيه';
+          document.getElementById('bookingNotesInput').value = data.bookingNotes || '';
+          entries = (data.entries || []).map(e => ({ ...e, times: e.times || [] }));
+          render();
+        } catch {}
+      }
+    }
+
+    async function saveToAPI() {
+      const data = {
+        title: document.getElementById('titleSelect').value,
+        bookingNotes: document.getElementById('bookingNotesInput').value,
+        entries,
+      };
+      try {
+        const res = await fetch('/api/notes', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data, null, 2),
+        });
+        if (res.ok) {
+          showToast('✅ تم حفظ الملف بنجاح');
+          saveToLocal();
+        } else {
+          showToast('❌ فشل في حفظ الملف');
+        }
+      } catch {
+        showToast('❌ تعذر الاتصال بالخادم');
+      }
+    }
+
+    async function loadFromAPI() {
+      try {
+        const res = await fetch('/api/notes');
+        if (res.ok) {
+          const data = await res.json();
+          document.getElementById('titleSelect').value = data.title || 'تنبيه';
+          document.getElementById('bookingNotesInput').value = data.bookingNotes || '';
+          entries = (data.entries || []).map(e => ({ ...e, times: e.times || [] }));
+          saveToLocal();
+          render();
+          showToast('✅ تم تحميل الملف');
+        }
+      } catch {}
+    }
+
+    function exportJSON() {
+      const data = {
+        title: document.getElementById('titleSelect').value,
+        bookingNotes: document.getElementById('bookingNotesInput').value,
+        entries,
+      };
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'notes.json';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function importJSON(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = JSON.parse(e.target.result);
+          document.getElementById('titleSelect').value = data.title || 'تنبيه';
+          document.getElementById('bookingNotesInput').value = data.bookingNotes || '';
+          entries = (data.entries || []).map(entry => ({ ...entry, times: entry.times || [] }));
+          saveToLocal();
+          render();
+          showToast('✅ تم استيراد الملف');
+        } catch (err) {
+          alert('خطأ في قراءة الملف: ' + err.message);
+        }
+      };
+      reader.readAsText(file);
+      event.target.value = '';
+    }
+
+    document.getElementById('titleSelect').addEventListener('change', saveToLocal);
+    document.getElementById('bookingNotesInput').addEventListener('input', saveToLocal);
+    loadFromAPI();
+  </script>
+</body>
+</html>

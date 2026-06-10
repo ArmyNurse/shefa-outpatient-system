@@ -1,0 +1,50 @@
+@import "./themes/theme-blue.css";
+@import "./themes/theme-emerald.css";
+@import "./themes/theme-rose.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: "Cairo", "Tajawal", sans-serif;
+  background: #0f172a;
+  color: #f8fafc;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1e293b;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #475569;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+
+.font-sm { font-size: 13px; }
+.font-md { font-size: 15px; }
+.font-lg { font-size: 17px; }
+
+.font-sm h2 { font-size: 1.25rem; }
+.font-md h2 { font-size: 1.5rem; }
+.font-lg h2 { font-size: 1.75rem; }
+
+.font-sm td { padding: 0.5rem 1.25rem; }
+.font-md td { padding: 0.625rem 1.25rem; }
+.font-lg td { padding: 0.75rem 1.25rem; }
