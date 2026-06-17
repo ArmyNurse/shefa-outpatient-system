@@ -1,27 +1,43 @@
-let store: any = null;
-let storeError: string | null = null;
-
+let initialData: any[] = [];
 try {
-  const blob = require("@netlify/blobs");
-  store = blob.getStore("doctors");
-} catch (e: any) {
-  storeError = e?.message || "Failed to init store";
+  initialData = require("./initial-data.json");
+} catch {
+  initialData = [];
 }
+if (!Array.isArray(initialData)) initialData = [];
 
 let memoryCache: any[] | null = null;
+
+async function getBlobStore() {
+  try {
+    const mod = await import("@netlify/blobs");
+    const store = mod.getStore(process.env.SITE_ID
+      ? { name: "doctors", siteID: process.env.SITE_ID }
+      : "doctors"
+    );
+    return store;
+  } catch {
+    return null;
+  }
+}
 
 exports.handler = async (event: any) => {
   const headers = { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" };
 
   try {
     if (event.httpMethod === "GET") {
+      const store = await getBlobStore();
       if (store) {
         try {
           const data = await store.get("schedule", { type: "json" });
-          return { statusCode: 200, headers, body: JSON.stringify(Array.isArray(data) ? data : []) };
+          if (Array.isArray(data) && data.length > 0) {
+            memoryCache = data;
+            return { statusCode: 200, headers, body: JSON.stringify(data) };
+          }
         } catch {}
       }
-      return { statusCode: 200, headers, body: JSON.stringify(memoryCache || []) };
+      const data = memoryCache || initialData;
+      return { statusCode: 200, headers, body: JSON.stringify(data) };
     }
 
     if (event.httpMethod === "POST") {
@@ -30,6 +46,7 @@ exports.handler = async (event: any) => {
         return { statusCode: 400, headers, body: JSON.stringify({ error: "Invalid data" }) };
       }
       memoryCache = body;
+      const store = await getBlobStore();
       if (store) {
         try { await store.setJSON("schedule", body); } catch {}
       }
@@ -37,7 +54,7 @@ exports.handler = async (event: any) => {
     }
 
     return { statusCode: 404, headers, body: JSON.stringify({ error: "Not found" }) };
-  } catch (err: any) {
-    return { statusCode: 200, headers, body: JSON.stringify(memoryCache || []) };
+  } catch {
+    return { statusCode: 200, headers, body: JSON.stringify(memoryCache || initialData) };
   }
 };

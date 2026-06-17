@@ -5,11 +5,7 @@ const ONE_TIME_PASSWORDS = [
   "awdeyx", "i1vppm", "mari12", "hs291n",
 ];
 
-let store: any = null;
-try {
-  const blob = require("@netlify/blobs");
-  store = blob.getStore("passwords");
-} catch {}
+const usedPasswords = new Set<string>();
 
 exports.handler = async (event: any) => {
   const headers = { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" };
@@ -26,15 +22,10 @@ exports.handler = async (event: any) => {
     }
 
     if (ONE_TIME_PASSWORDS.includes(password)) {
-      if (!store) {
-        return { statusCode: 200, headers, body: JSON.stringify({ ok: false, error: "التخزين غير متاح حالياً" }) };
-      }
-      const used: string[] = (await store.get("used", { type: "json" })) || [];
-      if (used.includes(password)) {
+      if (usedPasswords.has(password)) {
         return { statusCode: 200, headers, body: JSON.stringify({ ok: false, error: "هذا الباسوورد مستخدم من قبل" }) };
       }
-      used.push(password);
-      await store.setJSON("used", used);
+      usedPasswords.add(password);
       return { statusCode: 200, headers, body: JSON.stringify({ ok: true, type: "timed", expiresIn: 10 * 60 * 1000 }) };
     }
 
