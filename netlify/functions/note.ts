@@ -7,7 +7,9 @@ exports.handler = async (event: any) => {
   };
 
   try {
-    const store = getStore("notes");
+    const siteID = process.env.SITE_ID || "";
+    const token = process.env.NETLIFY_ACCESS_TOKEN || "";
+    const store = siteID && token ? getStore({ name: "notes", siteID, token }) : getStore("notes");
 
     if (event.httpMethod === "GET") {
       const data = await store.get("data", { type: "json" });

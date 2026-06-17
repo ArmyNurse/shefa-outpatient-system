@@ -13,7 +13,9 @@ let store: any = null;
 let storeInitError: string | null = null;
 
 try {
-  store = getStore("doctors");
+  const siteID = process.env.SITE_ID || "";
+  const token = process.env.NETLIFY_ACCESS_TOKEN || "";
+  store = siteID && token ? getStore({ name: "doctors", siteID, token }) : getStore("doctors");
 } catch (e: any) {
   storeInitError = e?.message || String(e);
 }

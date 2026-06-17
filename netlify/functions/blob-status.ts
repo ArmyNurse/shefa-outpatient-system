@@ -10,7 +10,9 @@ exports.handler = async (event: any) => {
     let writeOk = false;
 
     try {
-      const store = getStore("doctors");
+      const siteID = process.env.SITE_ID || "";
+      const token = process.env.NETLIFY_ACCESS_TOKEN || "";
+      const store = siteID && token ? getStore({ name: "doctors", siteID, token }) : getStore("doctors");
       blobOk = true;
 
       try {
