@@ -1,6 +1,4 @@
 import { useMemo } from "react";
-import schedule from "../data/schedule.json";
-import notesConfig from "../data/notes.json";
 import type { Specialty, NotesEntry } from "../types";
 
 const MAX_DOCTORS_PER_PAGE = 5;
@@ -25,7 +23,10 @@ export interface NotesDisplayPage {
 
 export type Page = DisplayPage | NotesDisplayPage;
 
-export function useExpandedSchedule() {
+export function useExpandedSchedule(
+  schedule: Specialty[],
+  notesConfig: { title: string; bookingNotes: string; enabled: boolean; entries: NotesEntry[] }
+) {
   return useMemo(() => {
     const pages: Page[] = [];
     for (const s of schedule) {
@@ -45,7 +46,7 @@ export function useExpandedSchedule() {
       }
     }
 
-    if (notesConfig.entries.length > 0) {
+    if (notesConfig.enabled && notesConfig.entries.length > 0) {
       pages.push({
         id: "notes-page",
         isNotesPage: true,
@@ -56,5 +57,5 @@ export function useExpandedSchedule() {
     }
 
     return pages;
-  }, []);
+  }, [schedule, notesConfig]);
 }

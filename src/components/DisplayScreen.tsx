@@ -11,16 +11,19 @@ import {
 } from "lucide-react";
 import { useExpandedSchedule, type Page } from "../hooks/useExpandedSchedule";
 import type { FontSize, ThemeName } from "./DisplaySettings";
+import type { Specialty, NotesEntry } from "../types";
 
 const SLIDE_DURATION = 10;
 
 interface Props {
   settings: { fontSize: FontSize; theme: ThemeName };
   onExit: () => void;
+  schedule: Specialty[];
+  notesConfig: { title: string; bookingNotes: string; enabled: boolean; entries: NotesEntry[] };
 }
 
-export function DisplayScreen({ settings, onExit }: Props) {
-  const pages = useExpandedSchedule();
+export function DisplayScreen({ settings, onExit, schedule, notesConfig }: Props) {
+  const pages = useExpandedSchedule(schedule, notesConfig);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [countdown, setCountdown] = useState(SLIDE_DURATION);
 

@@ -1,6 +1,7 @@
 {
   "title": "تنويه",
   "bookingNotes": "الحجز يوميا ماعدا الجمعة",
+  "enabled": true,
   "entries": [
     {
       "doctor": "ماريو فلتس شوقي",

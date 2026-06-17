@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Monitor, Grid3X3, Shield, LogOut } from "lucide-react";
 import { Header } from "./components/Header";
@@ -11,8 +11,9 @@ import { PasswordOverlay } from "./components/PasswordOverlay";
 import { AdminPage } from "./components/AdminPage";
 import { SessionTimer } from "./components/SessionTimer";
 import type { FontSize, ThemeName } from "./components/DisplaySettings";
-import schedule from "./data/schedule.json";
-import type { Specialty } from "./types";
+import scheduleStatic from "./data/schedule.json";
+import notesConfig from "./data/notes.json";
+import type { Specialty, NotesEntry } from "./types";
 
 function getInitialAuth(): { authed: boolean; type?: "lifetime" | "timed"; expiresAt?: number } {
   const auth = sessionStorage.getItem("auth");
@@ -48,10 +49,41 @@ export default function App() {
   const [selectedSpecialty, setSelectedSpecialty] = useState<Specialty | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
+  const [schedule, setSchedule] = useState<Specialty[]>(scheduleStatic);
+  const prevAdminRef = useRef(showAdmin);
   const [displaySettings, setDisplaySettings] = useState<{
     fontSize: FontSize;
     theme: ThemeName;
   } | null>(null);
+
+  const selectedRef = useRef(selectedSpecialty);
+  selectedRef.current = selectedSpecialty;
+
+  const fetchSchedule = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/doctors");
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) {
+        setSchedule(data);
+        const sel = selectedRef.current;
+        if (sel) {
+          const updated = data.find((s: Specialty) => s.id === sel.id);
+          if (updated) setSelectedSpecialty(updated);
+        }
+      }
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    fetchSchedule();
+  }, [fetchSchedule]);
+
+  useEffect(() => {
+    if (prevAdminRef.current && !showAdmin) {
+      fetchSchedule();
+    }
+    prevAdminRef.current = showAdmin;
+  }, [showAdmin, fetchSchedule]);
 
   const handleUnlock = useCallback((type: "lifetime" | "timed", exp?: number) => {
     setSessionType(type);
@@ -85,6 +117,8 @@ export default function App() {
       <DisplayScreen
         settings={displaySettings}
         onExit={() => setDisplaySettings(null)}
+        schedule={schedule}
+        notesConfig={notesConfig}
       />
     );
   }

@@ -2,9 +2,12 @@ import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   HeartPulse, Save, ArrowLeft, MapPin, Phone, LogOut,
-  Plus, Trash2, User, Clock, FileText, Stethoscope, Database
+  Plus, Trash2, User, Clock, FileText, Stethoscope, Database, ToggleLeft, ToggleRight
 } from "lucide-react";
 import { registerSaveOnExpire, unregisterSaveOnExpire } from "../App";
+import { Toast } from "./Toast";
+
+const TITLE_OPTIONS = ["ملاحظات", "ملاحظة", "تنبيه", "تنويه", "وصل حديثاً"];
 
 interface SpecialtyData {
   id: string;
@@ -26,9 +29,17 @@ export function AdminPage({ onBack }: Props) {
   const [selectedSpecId, setSelectedSpecId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState("");
+  const [toast, setToast] = useState<{ type: "success" | "warning" | "error"; message: string } | null>(null);
   const [blobAvailable, setBlobAvailable] = useState<boolean | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ specIdx: number; docIdx: number } | null>(null);
+  const [activeTab, setActiveTab] = useState<"specs" | "notes">("specs");
+  const [notesData, setNotesData] = useState({ title: "تنويه", bookingNotes: "", enabled: true, entries: [] as { doctor: string; specialty: string; times: string[]; note: string }[] });
+  const [newEntryDoctor, setNewEntryDoctor] = useState("");
+  const [newEntrySpecialty, setNewEntrySpecialty] = useState("");
+  const [newEntryTime, setNewEntryTime] = useState("");
+  const [newEntryTimes, setNewEntryTimes] = useState<string[]>([]);
+  const [newEntryNote, setNewEntryNote] = useState("");
+  const [savingNotes, setSavingNotes] = useState(false);
   const dataRef = useRef(data);
 
   useEffect(() => { dataRef.current = data; }, [data]);
@@ -46,9 +57,20 @@ export function AdminPage({ onBack }: Props) {
       .catch(() => setLoading(false));
   }, []);
 
+  useEffect(() => {
+    fetch("/api/notes")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d && typeof d === "object") {
+          setNotesData({ title: d.title || "تنويه", bookingNotes: d.bookingNotes || "", enabled: d.enabled !== false, entries: d.entries || [] });
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   const save = async () => {
     setSaving(true);
-    setMessage("");
+    setToast(null);
     try {
       const res = await fetch("/api/admin/doctors", {
         method: "POST",
@@ -58,15 +80,18 @@ export function AdminPage({ onBack }: Props) {
       const result = await res.json();
       if (res.ok) {
         setBlobAvailable(result.blob === true);
-        setMessage(result.blob ? "✅ تم الحفظ الدائم بنجاح" : "⚠️ تم الحفظ مؤقتاً (فقط لهذا الجهاز)");
+        setToast(result.blob
+          ? { type: "success", message: "تم الحفظ الدائم بنجاح" }
+          : { type: "warning", message: "تم الحفظ مؤقتاً (فقط لهذا الجهاز)" }
+        );
       } else {
-        setMessage("❌ فشل الحفظ");
+        setToast({ type: "error", message: "فشل الحفظ" });
       }
     } catch {
-      setMessage("❌ خطأ في الاتصال");
+      setToast({ type: "error", message: "خطأ في الاتصال" });
     }
     setSaving(false);
-    setTimeout(() => setMessage(""), 4000);
+    setTimeout(() => setToast(null), 4000);
   };
 
   useEffect(() => {
@@ -83,6 +108,7 @@ export function AdminPage({ onBack }: Props) {
     if (!name || !name.trim()) return;
     setData((prev) => [...prev, { id, specialty: name.trim(), bookingNotes: "", doctors: [] }]);
     setSelectedSpecId(id);
+    setActiveTab("specs");
   };
 
   const addDoctor = (specIdx: number) => {
@@ -134,6 +160,53 @@ export function AdminPage({ onBack }: Props) {
     window.location.reload();
   };
 
+  const addTimeToNew = () => {
+    if (!newEntryTime.trim()) return;
+    setNewEntryTimes((prev) => [...prev, newEntryTime.trim()]);
+    setNewEntryTime("");
+  };
+
+  const removeTimeFromNew = (idx: number) => {
+    setNewEntryTimes((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const addEntryToNotes = () => {
+    if (!newEntryDoctor && !newEntrySpecialty && newEntryTimes.length === 0 && !newEntryNote) return;
+    setNotesData((prev) => ({
+      ...prev,
+      entries: [...prev.entries, { doctor: newEntryDoctor, specialty: newEntrySpecialty, times: newEntryTimes, note: newEntryNote }],
+    }));
+    setNewEntryDoctor("");
+    setNewEntrySpecialty("");
+    setNewEntryTimes([]);
+    setNewEntryNote("");
+  };
+
+  const removeEntryFromNotes = (idx: number) => {
+    setNotesData((prev) => ({ ...prev, entries: prev.entries.filter((_, i) => i !== idx) }));
+  };
+
+  const saveNotes = async () => {
+    setSavingNotes(true);
+    setToast(null);
+    try {
+      const res = await fetch("/api/notes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(notesData, null, 2),
+      });
+      if (res.ok) {
+        setToast({ type: "success", message: "تم حفظ الملاحظات بنجاح" });
+      } else {
+        setToast({ type: "error", message: "فشل حفظ الملاحظات" });
+      }
+    } catch {
+      setToast({ type: "error", message: "خطأ في الاتصال" });
+    }
+    setSavingNotes(false);
+    setTimeout(() => setToast(null), 4000);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: "linear-gradient(135deg, #0f172a, #1e293b)" }}>
@@ -147,6 +220,7 @@ export function AdminPage({ onBack }: Props) {
 
   return (
     <div className="min-h-screen" style={{ background: "linear-gradient(180deg, #0b1121 0%, #0f172a 50%, #0b1121 100%)" }}>
+      <Toast show={!!toast} type={toast?.type || "success"} message={toast?.message || ""} onDismiss={() => setToast(null)} />
 
       {/* ─── Header ─── */}
       <div className="sticky top-0 z-20 border-b border-white/5" style={{ background: "rgba(11,17,33,0.85)", backdropFilter: "blur(16px)" }}>
@@ -162,18 +236,33 @@ export function AdminPage({ onBack }: Props) {
               </div>
               <div>
                 <h1 className="text-lg font-black text-white">لوحة الإدارة</h1>
-                <p className="text-xs text-slate-500">{data.length} تخصص - {data.reduce((a, s) => a + s.doctors.length, 0)} دكتور</p>
+                <p className="text-xs text-slate-500">
+                  {activeTab === "notes"
+                    ? `ملاحظات - ${notesData.entries.length} مدخل`
+                    : `${data.length} تخصص - ${data.reduce((a, s) => a + s.doctors.length, 0)} دكتور`}
+                </p>
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <button onClick={addSpecialty} className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white px-3 py-2 rounded-xl text-xs font-bold transition-all">
-                <Plus className="w-3.5 h-3.5" />
-                إضافة تخصص
-              </button>
-              <button onClick={save} disabled={saving} className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl text-xs font-bold transition-all disabled:opacity-50">
-                <Save className="w-3.5 h-3.5" />
-                {saving ? "جاري الحفظ..." : "حفظ التغييرات"}
-              </button>
+              {activeTab === "specs" && (
+                <button onClick={addSpecialty} className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white px-3 py-2 rounded-xl text-xs font-bold transition-all">
+                  <Plus className="w-3.5 h-3.5" />
+                  إضافة تخصص
+                </button>
+              )}
+              {activeTab === "specs" && (
+                <button onClick={save} disabled={saving} className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl text-xs font-bold transition-all disabled:opacity-50">
+                  <Save className="w-3.5 h-3.5" />
+                  {saving ? "جاري الحفظ..." : "حفظ التغييرات"}
+                </button>
+              )}
+              {activeTab === "notes" && (
+                <button onClick={saveNotes} disabled={savingNotes}
+                  className="flex items-center gap-1.5 bg-amber-600 hover:bg-amber-500 text-white px-4 py-2 rounded-xl text-xs font-bold transition-all disabled:opacity-50">
+                  <Save className="w-3.5 h-3.5" />
+                  {savingNotes ? "جاري الحفظ..." : "حفظ الملاحظات"}
+                </button>
+              )}
               <button onClick={endSession} className="flex items-center gap-1.5 bg-red-600/20 hover:bg-red-600/30 text-red-300 px-3 py-2 rounded-xl border border-red-500/20 text-xs font-bold transition-all">
                 <LogOut className="w-3.5 h-3.5" />
                 خروج
@@ -185,17 +274,6 @@ export function AdminPage({ onBack }: Props) {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
 
-        {/* ─── Save message ─── */}
-        <AnimatePresence>
-          {message && (
-            <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
-              className="text-center mb-4 py-2 px-4 rounded-xl text-sm font-bold inline-block mx-auto"
-              style={{ color: message.includes("✅") ? "#34d399" : "#f87171", backgroundColor: message.includes("✅") ? "rgba(52,211,153,0.1)" : "rgba(248,113,113,0.1)" }}>
-              {message}
-            </motion.div>
-          )}
-        </AnimatePresence>
-
         {/* ─── Blob warning ─── */}
         {blobAvailable === false && (
           <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
@@ -205,25 +283,159 @@ export function AdminPage({ onBack }: Props) {
           </motion.div>
         )}
 
-        {/* ─── Specialty tabs ─── */}
+        {/* ─── Tabs ─── */}
         <div className="flex flex-wrap gap-2 mb-6">
           {data.map((spec) => (
-            <button key={spec.id} onClick={() => setSelectedSpecId(spec.id)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all border ${selectedSpecId === spec.id
+            <button key={spec.id} onClick={() => { setActiveTab("specs"); setSelectedSpecId(spec.id); }}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all border ${activeTab === "specs" && selectedSpecId === spec.id
                 ? "bg-blue-600 text-white border-blue-500 shadow-lg shadow-blue-500/20"
                 : "bg-white/5 text-slate-300 border-white/10 hover:bg-white/10"}`}>
               <Stethoscope className="w-4 h-4" />
               {spec.specialty}
-              <span className={`text-xs px-1.5 py-0.5 rounded-full ${selectedSpecId === spec.id ? "bg-white/20" : "bg-white/10"}`}>
+              <span className={`text-xs px-1.5 py-0.5 rounded-full ${activeTab === "specs" && selectedSpecId === spec.id ? "bg-white/20" : "bg-white/10"}`}>
                 {spec.doctors.length}
               </span>
             </button>
           ))}
+          <button onClick={() => setActiveTab("notes")}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all border ${activeTab === "notes"
+              ? "bg-amber-600 text-white border-amber-500 shadow-lg shadow-amber-500/20"
+              : "bg-white/5 text-slate-300 border-white/10 hover:bg-white/10"}`}>
+            <FileText className="w-4 h-4" />
+            ملاحظات
+            <span className={`text-xs px-1.5 py-0.5 rounded-full ${activeTab === "notes" ? "bg-white/20" : "bg-white/10"}`}>{notesData.entries.length}</span>
+          </button>
         </div>
 
-        {/* ─── Selected specialty panel ─── */}
+        {/* ─── Panel ─── */}
         <AnimatePresence mode="wait">
-          {selectedSpec && selectedIdx !== -1 ? (
+          {activeTab === "notes" ? (
+            <motion.div key="notes" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }} transition={{ duration: 0.2 }}>
+
+              {/* Notes header */}
+              <div className="flex items-center justify-between mb-5">
+                <div className="flex items-center gap-3">
+                  <div className="bg-gradient-to-br from-amber-500 to-amber-700 p-2.5 rounded-xl shadow-lg">
+                    <FileText className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-black text-white">إدارة الملاحظات</h2>
+                    <p className="text-xs text-slate-500">{notesData.entries.length} مدخل</p>
+                  </div>
+                </div>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <span className="text-sm text-slate-300 font-semibold">{notesData.enabled ? "مفعل" : "معطل"}</span>
+                  <button onClick={() => setNotesData((prev) => ({ ...prev, enabled: !prev.enabled }))}>
+                    {notesData.enabled
+                      ? <ToggleRight className="w-7 h-7 text-emerald-400" />
+                      : <ToggleLeft className="w-7 h-7 text-slate-500" />}
+                  </button>
+                </label>
+              </div>
+
+              {/* Title + Booking notes */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
+                <div>
+                  <label className="block text-xs text-slate-400 font-semibold mb-1.5">عنوان الصفحة</label>
+                  <select value={notesData.title} onChange={(e) => setNotesData((prev) => ({ ...prev, title: e.target.value }))}
+                    className="w-full px-4 py-2.5 rounded-xl border text-sm outline-none transition-all"
+                    style={{ backgroundColor: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.08)", color: "#fff" }}>
+                    {TITLE_OPTIONS.map((t) => (
+                      <option key={t} value={t} style={{ background: "#1e293b", color: "#fff" }}>{t}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-400 font-semibold mb-1.5">ملاحظات الحجز</label>
+                  <input value={notesData.bookingNotes} onChange={(e) => setNotesData((prev) => ({ ...prev, bookingNotes: e.target.value }))}
+                    placeholder="اختياري"
+                    className="w-full px-4 py-2.5 rounded-xl border text-sm outline-none transition-all"
+                    style={{ backgroundColor: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.08)", color: "#fff" }}
+                  />
+                </div>
+              </div>
+
+              {/* Add entry */}
+              <div className="mb-6 rounded-2xl border p-5" style={{ borderColor: "rgba(255,255,255,0.06)", backgroundColor: "rgba(255,255,255,0.02)" }}>
+                <h3 className="text-sm font-bold text-slate-300 mb-4">إضافة مدخل جديد</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                  <input value={newEntryDoctor} onChange={(e) => setNewEntryDoctor(e.target.value)}
+                    placeholder="اسم الدكتور"
+                    className="px-3 py-2 rounded-lg border text-sm outline-none transition-all"
+                    style={{ backgroundColor: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.08)", color: "#fff" }}
+                  />
+                  <input value={newEntrySpecialty} onChange={(e) => setNewEntrySpecialty(e.target.value)}
+                    placeholder="التخصص"
+                    className="px-3 py-2 rounded-lg border text-sm outline-none transition-all"
+                    style={{ backgroundColor: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.08)", color: "#fff" }}
+                  />
+                </div>
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {newEntryTimes.map((t, i) => (
+                    <span key={i} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold"
+                      style={{ backgroundColor: "rgba(251,191,36,0.15)", color: "#fbbf24" }}>
+                      {t}
+                      <button onClick={() => removeTimeFromNew(i)} className="text-red-400 hover:text-red-300">×</button>
+                    </span>
+                  ))}
+                </div>
+                <div className="flex gap-2 mb-3">
+                  <input value={newEntryTime} onChange={(e) => setNewEntryTime(e.target.value)}
+                    placeholder="أضف موعد (مثال: الخميس 4:00 م)"
+                    className="flex-1 px-3 py-2 rounded-lg border text-sm outline-none transition-all"
+                    style={{ backgroundColor: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.08)", color: "#fff" }}
+                    onKeyDown={(e) => { if (e.key === "Enter") addTimeToNew(); }}
+                  />
+                  <button onClick={addTimeToNew}
+                    className="bg-blue-600 hover:bg-blue-500 text-white px-3 py-2 rounded-lg text-xs font-bold transition-all">إضافة</button>
+                </div>
+                <input value={newEntryNote} onChange={(e) => setNewEntryNote(e.target.value)}
+                  placeholder="نص الملاحظة"
+                  className="w-full px-3 py-2 rounded-lg border text-sm outline-none transition-all mb-3"
+                  style={{ backgroundColor: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.08)", color: "#fff" }}
+                />
+                <button onClick={addEntryToNotes}
+                  className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl text-xs font-bold transition-all">
+                  <Plus className="w-3.5 h-3.5 inline ml-1" />
+                  إضافة مدخل
+                </button>
+              </div>
+
+              {/* Entries list */}
+              {notesData.entries.length === 0 ? (
+                <div className="text-center py-16 border-2 border-dashed border-white/5 rounded-2xl">
+                  <FileText className="w-10 h-10 text-slate-600 mx-auto mb-3" />
+                  <p className="text-slate-500 text-sm font-semibold">لا توجد مدخلات ملاحظات</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {notesData.entries.map((entry, i) => (
+                    <motion.div key={i} layout initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}
+                      className="rounded-2xl border p-4" style={{ borderColor: "rgba(255,255,255,0.06)", backgroundColor: "rgba(255,255,255,0.02)" }}>
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex gap-2 flex-wrap items-center">
+                            <span className="text-white text-base font-bold">{entry.doctor || "—"}</span>
+                            {entry.specialty && <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ backgroundColor: "rgba(59,130,246,0.15)", color: "#60a5fa" }}>{entry.specialty}</span>}
+                          </div>
+                          <div className="flex flex-wrap gap-1.5 mt-1.5">
+                            {entry.times.map((t, ti) => (
+                              <span key={ti} className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ backgroundColor: "rgba(251,191,36,0.15)", color: "#fbbf24" }}>{t}</span>
+                            ))}
+                          </div>
+                          {entry.note && <p className="text-sm text-slate-400 mt-1">{entry.note}</p>}
+                        </div>
+                        <button onClick={() => removeEntryFromNotes(i)}
+                          className="text-red-400 hover:text-red-300 hover:bg-red-500/10 p-2 rounded-xl transition-all shrink-0">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
+            </motion.div>
+          ) : selectedSpec && selectedIdx !== -1 ? (
             <motion.div key={selectedSpec.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }} transition={{ duration: 0.2 }}>
 
               {/* Specialty header */}
@@ -334,7 +546,7 @@ export function AdminPage({ onBack }: Props) {
                             </div>
                           </div>
 
-                          {/* Notes */}
+                          {/* Doctor notes */}
                           <div>
                             <label className="block text-xs text-slate-400 font-semibold mb-2 flex items-center gap-1.5">
                               <FileText className="w-3.5 h-3.5" />

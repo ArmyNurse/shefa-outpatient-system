@@ -19,6 +19,7 @@ export interface NotesEntry {
 export interface NotesConfig {
   title: string;
   bookingNotes: string;
+  enabled: boolean;
   entries: NotesEntry[];
 }
 
