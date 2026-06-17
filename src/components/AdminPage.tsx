@@ -27,6 +27,7 @@ export function AdminPage({ onBack }: Props) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [blobAvailable, setBlobAvailable] = useState<boolean | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ specIdx: number; docIdx: number } | null>(null);
   const dataRef = useRef(data);
 
@@ -34,8 +35,9 @@ export function AdminPage({ onBack }: Props) {
 
   useEffect(() => {
     fetch("/api/admin/doctors")
-      .then((r) => r.json())
-      .then((d) => {
+      .then(async (r) => {
+        setBlobAvailable(r.headers.get("X-Blob-Available") === "true");
+        const d = await r.json();
         const arr = Array.isArray(d) ? d : [];
         setData(arr);
         if (arr.length > 0) setSelectedSpecId(arr[0].id);
@@ -53,13 +55,18 @@ export function AdminPage({ onBack }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(dataRef.current, null, 2),
       });
-      if (res.ok) setMessage("✅ تم الحفظ بنجاح");
-      else setMessage("❌ فشل الحفظ");
+      const result = await res.json();
+      if (res.ok) {
+        setBlobAvailable(result.blob === true);
+        setMessage(result.blob ? "✅ تم الحفظ الدائم بنجاح" : "⚠️ تم الحفظ مؤقتاً (فقط لهذا الجهاز)");
+      } else {
+        setMessage("❌ فشل الحفظ");
+      }
     } catch {
       setMessage("❌ خطأ في الاتصال");
     }
     setSaving(false);
-    setTimeout(() => setMessage(""), 3000);
+    setTimeout(() => setMessage(""), 4000);
   };
 
   useEffect(() => {
@@ -188,6 +195,15 @@ export function AdminPage({ onBack }: Props) {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* ─── Blob warning ─── */}
+        {blobAvailable === false && (
+          <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
+            className="mb-4 py-2.5 px-4 rounded-xl text-sm font-semibold text-center"
+            style={{ backgroundColor: "rgba(251,191,36,0.1)", color: "#fbbf24", border: "1px solid rgba(251,191,36,0.2)" }}>
+            ⚠️ تم التخزين مؤقتاً. قم بتمكين Netlify Blob Storage من لوحة تحكم Netlify للحفظ الدائم
+          </motion.div>
+        )}
 
         {/* ─── Specialty tabs ─── */}
         <div className="flex flex-wrap gap-2 mb-6">
