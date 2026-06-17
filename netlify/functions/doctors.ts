@@ -1,3 +1,5 @@
+const { getStore } = require("@netlify/blobs");
+
 let initialData: any[] = [];
 try {
   initialData = require("./initial-data.json");
@@ -7,26 +9,17 @@ try {
 if (!Array.isArray(initialData)) initialData = [];
 
 let memoryCache: any[] | null = null;
+let store: any = null;
 
-async function getBlobStore() {
-  try {
-    const mod = await import("@netlify/blobs");
-    const store = mod.getStore(process.env.SITE_ID
-      ? { name: "doctors", siteID: process.env.SITE_ID }
-      : "doctors"
-    );
-    return store;
-  } catch {
-    return null;
-  }
-}
+try {
+  store = getStore("doctors");
+} catch {}
 
 exports.handler = async (event: any) => {
   const headers = { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" };
 
   try {
     if (event.httpMethod === "GET") {
-      const store = await getBlobStore();
       if (store) {
         try {
           const data = await store.get("schedule", { type: "json" });
@@ -36,8 +29,7 @@ exports.handler = async (event: any) => {
           }
         } catch {}
       }
-      const data = memoryCache || initialData;
-      return { statusCode: 200, headers, body: JSON.stringify(data) };
+      return { statusCode: 200, headers, body: JSON.stringify(memoryCache || initialData) };
     }
 
     if (event.httpMethod === "POST") {
@@ -46,7 +38,6 @@ exports.handler = async (event: any) => {
         return { statusCode: 400, headers, body: JSON.stringify({ error: "Invalid data" }) };
       }
       memoryCache = body;
-      const store = await getBlobStore();
       if (store) {
         try { await store.setJSON("schedule", body); } catch {}
       }
