@@ -1,5 +1,3 @@
-import { getStore } from "@netlify/blobs";
-
 const LIFETIME_PASSWORDS = ["Mario1234%%%", "Treza@1234%%"];
 const ONE_TIME_PASSWORDS = [
   "31gmj6", "ygk46o", "fz65u9", "x2p03s",
@@ -7,11 +5,14 @@ const ONE_TIME_PASSWORDS = [
   "awdeyx", "i1vppm", "mari12", "hs291n",
 ];
 
+let store: any = null;
+try {
+  const blob = require("@netlify/blobs");
+  store = blob.getStore("passwords");
+} catch {}
+
 exports.handler = async (event: any) => {
-  const headers = {
-    "Content-Type": "application/json",
-    "Access-Control-Allow-Origin": "*",
-  };
+  const headers = { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" };
 
   if (event.httpMethod !== "POST") {
     return { statusCode: 404, headers, body: JSON.stringify({ error: "Not found" }) };
@@ -25,7 +26,9 @@ exports.handler = async (event: any) => {
     }
 
     if (ONE_TIME_PASSWORDS.includes(password)) {
-      const store = getStore("passwords");
+      if (!store) {
+        return { statusCode: 200, headers, body: JSON.stringify({ ok: false, error: "التخزين غير متاح حالياً" }) };
+      }
       const used: string[] = (await store.get("used", { type: "json" })) || [];
       if (used.includes(password)) {
         return { statusCode: 200, headers, body: JSON.stringify({ ok: false, error: "هذا الباسوورد مستخدم من قبل" }) };
@@ -36,7 +39,7 @@ exports.handler = async (event: any) => {
     }
 
     return { statusCode: 200, headers, body: JSON.stringify({ ok: false, error: "باسوورد غير صحيح" }) };
-  } catch (err: any) {
-    return { statusCode: 500, headers, body: JSON.stringify({ error: err.message || "Invalid request" }) };
+  } catch {
+    return { statusCode: 200, headers, body: JSON.stringify({ ok: false, error: "خطأ في التحقق" }) };
   }
 };
