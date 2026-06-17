@@ -12,7 +12,7 @@ import { AdminPage } from "./components/AdminPage";
 import { SessionTimer } from "./components/SessionTimer";
 import type { FontSize, ThemeName } from "./components/DisplaySettings";
 import scheduleStatic from "./data/schedule.json";
-import notesConfig from "./data/notes.json";
+import notesConfigStatic from "./data/notes.json";
 import type { Specialty, NotesEntry } from "./types";
 
 function getInitialAuth(): { authed: boolean; type?: "lifetime" | "timed"; expiresAt?: number } {
@@ -50,6 +50,7 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
   const [schedule, setSchedule] = useState<Specialty[]>(scheduleStatic);
+  const [notes, setNotes] = useState(notesConfigStatic);
   const prevAdminRef = useRef(showAdmin);
   const [displaySettings, setDisplaySettings] = useState<{
     fontSize: FontSize;
@@ -74,16 +75,28 @@ export default function App() {
     } catch {}
   }, []);
 
+  const fetchNotes = useCallback(async () => {
+    try {
+      const res = await fetch("/api/notes");
+      const data = await res.json();
+      if (data && typeof data === "object") {
+        setNotes({ title: data.title || "", bookingNotes: data.bookingNotes || "", enabled: data.enabled !== false, entries: data.entries || [] });
+      }
+    } catch {}
+  }, []);
+
   useEffect(() => {
     fetchSchedule();
-  }, [fetchSchedule]);
+    fetchNotes();
+  }, [fetchSchedule, fetchNotes]);
 
   useEffect(() => {
     if (prevAdminRef.current && !showAdmin) {
       fetchSchedule();
+      fetchNotes();
     }
     prevAdminRef.current = showAdmin;
-  }, [showAdmin, fetchSchedule]);
+  }, [showAdmin, fetchSchedule, fetchNotes]);
 
   const handleUnlock = useCallback((type: "lifetime" | "timed", exp?: number) => {
     setSessionType(type);
@@ -118,7 +131,7 @@ export default function App() {
         settings={displaySettings}
         onExit={() => setDisplaySettings(null)}
         schedule={schedule}
-        notesConfig={notesConfig}
+        notesConfig={notes}
       />
     );
   }
