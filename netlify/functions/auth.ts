@@ -1,6 +1,6 @@
 import { getStore } from "@netlify/blobs";
 
-const LIFETIME_PASSWORD = "Mario1234%%%";
+const LIFETIME_PASSWORDS = ["Mario1234%%%", "Treza@1234%%"];
 const ONE_TIME_PASSWORDS = [
   "31gmj6", "ygk46o", "fz65u9", "x2p03s",
   "ygja5z", "3xloox", "x1uatt", "4glvf0",
@@ -17,7 +17,7 @@ exports.handler = async (event: any) => {
   try {
     const { password } = JSON.parse(event.body);
 
-    if (password === LIFETIME_PASSWORD) {
+    if (LIFETIME_PASSWORDS.includes(password)) {
       return { statusCode: 200, headers, body: JSON.stringify({ ok: true, type: "lifetime" }) };
     }
 

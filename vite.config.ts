@@ -9,7 +9,7 @@ const schedulePath = path.resolve(__dirname, "src/data/schedule.json");
 const excelPath = path.resolve(__dirname, "doctor-schedual.xlsx");
 const usedPasswordsPath = path.resolve(__dirname, "used-passwords.json");
 
-const LIFETIME_PASSWORD = "Mario1234%%%";
+const LIFETIME_PASSWORDS = ["Mario1234%%%", "Treza@1234%%"];
 const ONE_TIME_PASSWORDS = [
   "31gmj6", "ygk46o", "fz65u9", "x2p03s",
   "ygja5z", "3xloox", "x1uatt", "4glvf0",
@@ -82,7 +82,7 @@ function apiPlugin(): Plugin {
         req.on("end", () => {
           try {
             const { password } = JSON.parse(body);
-            if (password === LIFETIME_PASSWORD) {
+            if (LIFETIME_PASSWORDS.includes(password)) {
               res.end(JSON.stringify({ ok: true, type: "lifetime" }));
               return;
             }

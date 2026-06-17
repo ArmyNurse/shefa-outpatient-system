@@ -3,3 +3,6 @@ dist/
 .env
 used-passwords.json
 *.local
+*.zip
+*.rar
+*.exe
