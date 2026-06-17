@@ -36,8 +36,9 @@ export function AdminPage({ onBack }: Props) {
     fetch("/api/admin/doctors")
       .then((r) => r.json())
       .then((d) => {
-        setData(d || []);
-        if (d && d.length > 0) setSelectedSpecId(d[0].id);
+        const arr = Array.isArray(d) ? d : [];
+        setData(arr);
+        if (arr.length > 0) setSelectedSpecId(arr[0].id);
         setLoading(false);
       })
       .catch(() => setLoading(false));

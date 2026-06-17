@@ -8,7 +8,10 @@ const ONE_TIME_PASSWORDS = [
 ];
 
 exports.handler = async (event: any) => {
-  const headers = { "Content-Type": "application/json" };
+  const headers = {
+    "Content-Type": "application/json",
+    "Access-Control-Allow-Origin": "*",
+  };
 
   if (event.httpMethod !== "POST") {
     return { statusCode: 404, headers, body: JSON.stringify({ error: "Not found" }) };
@@ -33,7 +36,7 @@ exports.handler = async (event: any) => {
     }
 
     return { statusCode: 200, headers, body: JSON.stringify({ ok: false, error: "باسوورد غير صحيح" }) };
-  } catch {
-    return { statusCode: 400, headers, body: JSON.stringify({ ok: false, error: "Invalid request" }) };
+  } catch (err: any) {
+    return { statusCode: 500, headers, body: JSON.stringify({ error: err.message || "Invalid request" }) };
   }
 };
